@@ -153,7 +153,7 @@ async def get_recent_trades(
             text("""
                 SELECT
                     id, pair, entry_price, exit_price, entry_time, exit_time,
-                    amount, pnl_usd, pnl_percent, exit_reason, status,
+                    entry_amount, pnl_usd, pnl_percent, exit_reason, status,
                     TIMESTAMPDIFF(HOUR, entry_time, exit_time) as duration
                 FROM trades
                 WHERE user_id = :user_id AND pair = :pair AND status = 'CLOSED'
@@ -172,7 +172,7 @@ async def get_recent_trades(
                 exit_price=row[3],
                 entry_time=row[4],
                 exit_time=row[5],
-                amount=row[6],
+                amount=row[6],  # entry_amount from DB
                 pnl_usd=row[7],
                 pnl_percent=row[8],
                 exit_reason=row[9],
@@ -221,7 +221,7 @@ async def get_all_trades(
         trades_query = """
             SELECT
                 id, pair, entry_price, exit_price, entry_time, exit_time,
-                amount, pnl_usd, pnl_percent, exit_reason, status
+                entry_amount, pnl_usd, pnl_percent, exit_reason, status
             FROM trades
             WHERE user_id = :user_id
         """
