@@ -66,6 +66,8 @@ async def google_auth(
     - Sets secure cookie
     """
     try:
+        logger.info(f"🔑 Login attempt for user: {request.email}")
+
         result = auth_service.authenticate_with_google(
             db=db,
             id_token=request.idToken,
@@ -76,15 +78,24 @@ async def google_auth(
         )
 
         if not result:
+            logger.error(f"❌ Authentication failed for {request.email}")
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Invalid Firebase token"
             )
 
         jwt_token, user = result
+        logger.info(f"✅ JWT token generated for user {user['email']} (ID: {user['id']})")
+        logger.info(f"🎫 Token preview: {jwt_token[:30]}...")
 
         # Set auth cookie
         set_auth_cookie(response, jwt_token)
+        logger.info(f"🍪 Auth cookie set for user {user['email']}")
+        logger.info(f"   - Cookie name: auth_token")
+        logger.info(f"   - HttpOnly: True")
+        logger.info(f"   - SameSite: {'none' if settings.is_production else 'lax'}")
+        logger.info(f"   - Secure: {settings.is_production}")
+        logger.info(f"   - Max-Age: {settings.jwt_expiration_days * 24 * 60 * 60} seconds")
 
         return AuthResponse(
             success=True,

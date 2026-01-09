@@ -43,6 +43,42 @@ app.add_middleware(
 )
 
 
+# Request logging middleware
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    """Log all incoming requests with headers and cookies"""
+    logger.info(f"📥 Incoming request: {request.method} {request.url.path}")
+    logger.info(f"   Origin: {request.headers.get('origin', 'Not set')}")
+    logger.info(f"   User-Agent: {request.headers.get('user-agent', 'Not set')[:50]}...")
+
+    # Log cookies
+    if request.cookies:
+        logger.info(f"   🍪 Cookies present: {list(request.cookies.keys())}")
+        if 'auth_token' in request.cookies:
+            logger.info(f"   🍪 auth_token: {request.cookies['auth_token'][:30]}...")
+    else:
+        logger.info(f"   🍪 No cookies in request")
+
+    # Log Authorization header
+    if 'authorization' in request.headers:
+        auth_header = request.headers['authorization']
+        logger.info(f"   🔑 Authorization header: {auth_header[:30]}...")
+    else:
+        logger.info(f"   🔑 No Authorization header")
+
+    # Process request
+    response = await call_next(request)
+
+    # Log response
+    logger.info(f"📤 Response: {response.status_code} for {request.method} {request.url.path}")
+
+    # Log Set-Cookie headers if present
+    if 'set-cookie' in response.headers:
+        logger.info(f"   🍪 Setting cookie in response")
+
+    return response
+
+
 # Exception handlers
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
