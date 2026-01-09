@@ -147,7 +147,7 @@ class AuthService:
                 db.execute(
                     text("""
                         UPDATE users
-                        SET email = :email, name = :name, photo_url = :photo_url, updated_at = NOW()
+                        SET email = :email, name = :name, photo_url = :photo_url, last_login = NOW()
                         WHERE firebase_uid = :firebase_uid
                     """),
                     {
@@ -170,7 +170,7 @@ class AuthService:
                 # Create new user
                 result = db.execute(
                     text("""
-                        INSERT INTO users (firebase_uid, email, name, photo_url, created_at, updated_at)
+                        INSERT INTO users (firebase_uid, email, name, photo_url, created_at, last_login)
                         VALUES (:firebase_uid, :email, :name, :photo_url, NOW(), NOW())
                     """),
                     {

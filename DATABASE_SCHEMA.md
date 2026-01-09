@@ -13,12 +13,13 @@ Almacena información de usuarios autenticados con Firebase.
 ```sql
 CREATE TABLE users (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    firebase_uid VARCHAR(255) NOT NULL UNIQUE,
-    email VARCHAR(255) NOT NULL,
-    name VARCHAR(255),
+    firebase_uid VARCHAR(128) NOT NULL UNIQUE,
+    email VARCHAR(255) NOT NULL UNIQUE,
+    name VARCHAR(100),
     photo_url TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    last_login TIMESTAMP NULL,
+    is_active TINYINT(1) DEFAULT 1,
     INDEX idx_firebase_uid (firebase_uid),
     INDEX idx_email (email)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -27,11 +28,12 @@ CREATE TABLE users (
 **Columnas**:
 - `id`: ID único del usuario (auto-incremento)
 - `firebase_uid`: UID de Firebase (único)
-- `email`: Email del usuario
+- `email`: Email del usuario (único)
 - `name`: Nombre del usuario
 - `photo_url`: URL de la foto de perfil
 - `created_at`: Fecha de creación
-- `updated_at`: Fecha de última actualización
+- `last_login`: Fecha del último login (se actualiza en cada autenticación)
+- `is_active`: Si el usuario está activo
 
 ---
 
@@ -312,12 +314,13 @@ USE trading_bot;
 -- Tabla users
 CREATE TABLE users (
     id INT AUTO_INCREMENT PRIMARY KEY,
-    firebase_uid VARCHAR(255) NOT NULL UNIQUE,
-    email VARCHAR(255) NOT NULL,
-    name VARCHAR(255),
+    firebase_uid VARCHAR(128) NOT NULL UNIQUE,
+    email VARCHAR(255) NOT NULL UNIQUE,
+    name VARCHAR(100),
     photo_url TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    last_login TIMESTAMP NULL,
+    is_active TINYINT(1) DEFAULT 1,
     INDEX idx_firebase_uid (firebase_uid),
     INDEX idx_email (email)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
