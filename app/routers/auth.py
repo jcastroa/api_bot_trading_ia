@@ -35,13 +35,19 @@ def set_auth_cookie(response: Response, token: str):
     """
     max_age = settings.jwt_expiration_days * 24 * 60 * 60  # Convert days to seconds
 
+    # Use 'lax' for development (localhost cross-origin)
+    # Use 'none' with secure=True for production with different domains
+    samesite_mode = "none" if settings.is_production else "lax"
+
     response.set_cookie(
         key="auth_token",
         value=token,
         httponly=True,
         secure=settings.is_production,  # Only HTTPS in production
-        samesite="strict",
-        max_age=max_age
+        samesite=samesite_mode,
+        max_age=max_age,
+        domain=None,  # Allow cross-port on same domain (localhost)
+        path="/"
     )
 
 
