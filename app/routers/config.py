@@ -117,7 +117,7 @@ async def save_config(
                 text("""
                     UPDATE api_configurations
                     SET api_key_encrypted = :api_key,
-                        api_secret_encrypted = :secret_key,
+                        secret_key_encrypted = :secret_key,
                         updated_at = NOW()
                     WHERE user_id = :user_id AND environment = :environment
                 """),
@@ -133,7 +133,7 @@ async def save_config(
             db.execute(
                 text("""
                     INSERT INTO api_configurations
-                    (user_id, environment, api_key_encrypted, api_secret_encrypted, created_at, updated_at)
+                    (user_id, environment, api_key_encrypted, secret_key_encrypted, created_at, updated_at)
                     VALUES (:user_id, :environment, :api_key, :secret_key, NOW(), NOW())
                 """),
                 {
