@@ -51,16 +51,12 @@ async def get_bot_state(
                 SELECT
                     id, user_id, pair, environment, in_position,
                     entry_price, entry_time, current_price, position_amount, position_original,
-                    tp1_executed, tp2_executed, tp3_executed,
-                    pnl_usd, pnl_percent,
-                    stop_loss_price, stop_loss_percent,
-                    tp1_price, tp1_percent,
-                    tp2_price, tp2_percent,
-                    tp3_price, tp3_percent,
-                    regime, probability, volatility,
-                    available_capital, total_pnl, total_pnl_percent,
-                    total_trades, winning_trades, blocked_trades,
-                    last_check
+                    tp1_executed, tp2_executed,
+                    current_pnl_usd, current_pnl_percent,
+                    regime, probability, volatility, threshold_used,
+                    available_capital,
+                    total_trades, winning_trades, trades_blocked,
+                    last_check, last_signal_action
                 FROM bot_states
                 WHERE user_id = :user_id AND pair = :pair
                 ORDER BY last_check DESC
@@ -100,27 +96,27 @@ async def get_bot_state(
             position_original=result[9],
             tp1_executed=bool(result[10]),
             tp2_executed=bool(result[11]),
-            tp3_executed=bool(result[12]),
-            pnl_usd=result[13],
-            pnl_percent=result[14],
-            stop_loss_price=result[15],
-            stop_loss_percent=result[16],
-            tp1_price=result[17],
-            tp1_percent=result[18],
-            tp2_price=result[19],
-            tp2_percent=result[20],
-            tp3_price=result[21],
-            tp3_percent=result[22],
-            regime=result[23],
-            probability=result[24],
-            volatility=result[25],
-            available_capital=result[26],
-            total_pnl=result[27],
-            total_pnl_percent=result[28],
-            total_trades=result[29],
-            winning_trades=result[30],
-            blocked_trades=result[31],
-            last_check=result[32]
+            tp3_executed=False,  # Not in real schema
+            pnl_usd=result[12],  # current_pnl_usd
+            pnl_percent=result[13],  # current_pnl_percent
+            stop_loss_price=None,  # Not in real schema
+            stop_loss_percent=None,  # Not in real schema
+            tp1_price=None,  # Not in real schema
+            tp1_percent=None,  # Not in real schema
+            tp2_price=None,  # Not in real schema
+            tp2_percent=None,  # Not in real schema
+            tp3_price=None,  # Not in real schema
+            tp3_percent=None,  # Not in real schema
+            regime=result[14],
+            probability=result[15],
+            volatility=result[16],
+            available_capital=result[18],
+            total_pnl=None,  # Not in real schema
+            total_pnl_percent=None,  # Not in real schema
+            total_trades=result[19],
+            winning_trades=result[20],
+            blocked_trades=result[21],  # trades_blocked
+            last_check=result[22]
         )
 
         return BotStateResponse(success=True, data=bot_state)
