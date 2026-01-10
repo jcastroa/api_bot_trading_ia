@@ -42,6 +42,8 @@ services:
       - RATE_LIMIT_PERIOD=${RATE_LIMIT_PERIOD:-900}
 
     volumes:
+      # Mount Docker socket to manage bot containers
+      - /var/run/docker.sock:/var/run/docker.sock
       # Mount Firebase credentials if using file
       - ./firebase-credentials.json:/app/firebase-credentials.json:ro
       # Mount app code for development (comment out in production)
