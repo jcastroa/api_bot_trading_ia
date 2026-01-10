@@ -52,7 +52,7 @@ services:
     restart: unless-stopped
 
     networks:
-      - trading-bot-network
+      - bot_trading_web_trading-network
 
     healthcheck:
       test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:5000/health')"]
@@ -62,8 +62,8 @@ services:
       start_period: 40s
 
 networks:
-  trading-bot-network:
-    driver: bridge
+  bot_trading_web_trading-network:
+    external: true
 
 # Note: This docker-compose assumes the MySQL database is running on another service
 # If you need to add MySQL to this compose file, uncomment the following:
