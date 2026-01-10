@@ -1,0 +1,33 @@
+# Requirements.txt para el Bot de Trading
+# Ajusta según las dependencias reales de tu bot
+
+# Binance API
+python-binance==1.0.19
+
+# Base de Datos
+pymysql==1.1.0
+sqlalchemy==2.0.25
+cryptography==41.0.7
+
+# Análisis de Datos
+pandas==2.1.4
+numpy==1.26.3
+
+# Machine Learning (si usas IA)
+scikit-learn==1.3.2
+# tensorflow==2.15.0
+# torch==2.1.2
+
+# Utilidades
+python-dotenv==1.0.0
+requests==2.31.0
+
+# Logging y Monitoring
+loguru==0.7.2
+
+# Notificaciones
+# Para email
+# smtplib viene con Python
+
+# Para Telegram (opcional)
+python-telegram-bot==20.7
