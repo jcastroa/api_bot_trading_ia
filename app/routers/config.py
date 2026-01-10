@@ -22,6 +22,7 @@ from app.models.schemas import (
 )
 from app.middleware.auth_middleware import get_current_user
 from app.services.encryption_service import encryption_service
+from app.services.docker_service import docker_service
 
 logger = logging.getLogger(__name__)
 
@@ -170,9 +171,25 @@ async def save_config(
 
         db.commit()
 
+        # Start bot containers automatically
+        logger.info(f"🚀 Starting bot containers for user {user_id} in {request.environment}")
+        container_results = docker_service.start_all_bots_for_user(
+            db=db,
+            user_id=user_id,
+            environment=request.environment,
+            image_name="trading-bot:latest"  # Change this to your image name
+        )
+
+        # Log results
+        started_count = sum(1 for cid in container_results.values() if cid is not None)
+        logger.info(f"✅ Started {started_count}/2 bot containers")
+
+        if started_count == 0:
+            logger.warning("⚠️ No containers were started. Make sure Docker image 'trading-bot:latest' exists")
+
         return StandardResponse(
             success=True,
-            message="Configuración guardada correctamente"
+            message=f"Configuración guardada correctamente. {started_count}/2 bots iniciados."
         )
 
     except HTTPException:
@@ -300,6 +317,190 @@ async def get_bot_config(
         raise
     except Exception as e:
         logger.error(f"Error in get_bot_config: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal server error"
+        )
+
+@router.post("/container/start/{environment}", response_model=StandardResponse, status_code=status.HTTP_200_OK)
+async def start_containers(
+    environment: Literal["testnet", "production"],
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Start bot containers for all pairs (ETHUSDT and BTCUSDT)
+
+    - Creates and starts Docker containers
+    - Passes API keys and configuration via environment variables
+    - Requires authentication
+    """
+    try:
+        user_id = current_user["id"]
+
+        logger.info(f"🚀 Starting bot containers for user {user_id} in {environment}")
+
+        # Start all bots
+        results = docker_service.start_all_bots_for_user(
+            db=db,
+            user_id=user_id,
+            environment=environment,
+            image_name="trading-bot:latest"
+        )
+
+        started_count = sum(1 for cid in results.values() if cid is not None)
+
+        if started_count == 0:
+            return StandardResponse(
+                success=False,
+                message="No se pudo iniciar ningún contenedor. Verifica que la imagen Docker 'trading-bot:latest' exista."
+            )
+
+        return StandardResponse(
+            success=True,
+            message=f"{started_count}/2 contenedores iniciados correctamente"
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error in start_containers: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal server error"
+        )
+
+
+@router.post("/container/stop/{environment}", response_model=StandardResponse, status_code=status.HTTP_200_OK)
+async def stop_containers(
+    environment: Literal["testnet", "production"],
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Stop bot containers for all pairs
+
+    - Stops running containers
+    - Requires authentication
+    """
+    try:
+        user_id = current_user["id"]
+
+        logger.info(f"🛑 Stopping bot containers for user {user_id} in {environment}")
+
+        results = docker_service.stop_all_bots_for_user(user_id, environment)
+        stopped_count = sum(1 for success in results.values() if success)
+
+        return StandardResponse(
+            success=True,
+            message=f"{stopped_count}/2 contenedores detenidos correctamente"
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error in stop_containers: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal server error"
+        )
+
+
+@router.post("/container/restart/{environment}", response_model=StandardResponse, status_code=status.HTTP_200_OK)
+async def restart_containers(
+    environment: Literal["testnet", "production"],
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Restart bot containers for all pairs
+
+    - Useful when configuration changes or switching environments
+    - Requires authentication
+    """
+    try:
+        user_id = current_user["id"]
+
+        logger.info(f"🔄 Restarting bot containers for user {user_id} in {environment}")
+
+        pairs = ["ETHUSDT", "BTCUSDT"]
+        restarted_count = 0
+
+        for pair in pairs:
+            success = docker_service.restart_container(user_id, pair, environment)
+            if success:
+                restarted_count += 1
+
+        return StandardResponse(
+            success=True,
+            message=f"{restarted_count}/2 contenedores reiniciados correctamente"
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error in restart_containers: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal server error"
+        )
+
+
+@router.post("/container/toggle/{pair}/{environment}", response_model=StandardResponse, status_code=status.HTTP_200_OK)
+async def toggle_pair_container(
+    pair: Literal["ETHUSDT", "BTCUSDT"],
+    environment: Literal["testnet", "production"],
+    action: Literal["start", "stop"] = Query(..., description="Action to perform"),
+    current_user: dict = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Start or stop a specific pair container
+
+    - Allows granular control over individual trading pairs
+    - Requires authentication
+    """
+    try:
+        user_id = current_user["id"]
+
+        if action == "start":
+            logger.info(f"🚀 Starting {pair} bot for user {user_id} in {environment}")
+            container_id = docker_service.create_and_start_container(
+                db=db,
+                user_id=user_id,
+                pair=pair,
+                environment=environment,
+                image_name="trading-bot:latest"
+            )
+
+            if container_id:
+                return StandardResponse(
+                    success=True,
+                    message=f"Bot {pair} iniciado correctamente"
+                )
+            else:
+                return StandardResponse(
+                    success=False,
+                    message=f"No se pudo iniciar el bot {pair}"
+                )
+
+        else:  # stop
+            logger.info(f"🛑 Stopping {pair} bot for user {user_id} in {environment}")
+            success = docker_service.stop_container(user_id, pair, environment)
+
+            if success:
+                return StandardResponse(
+                    success=True,
+                    message=f"Bot {pair} detenido correctamente"
+                )
+            else:
+                return StandardResponse(
+                    success=False,
+                    message=f"No se pudo detener el bot {pair}"
+                )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error in toggle_pair_container: {e}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Internal server error"
