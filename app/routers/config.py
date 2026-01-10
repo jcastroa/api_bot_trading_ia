@@ -176,8 +176,7 @@ async def save_config(
         container_results = docker_service.start_all_bots_for_user(
             db=db,
             user_id=user_id,
-            environment=request.environment,
-            image_name="trading-bot:latest"  # Change this to your image name
+            environment=request.environment
         )
 
         # Log results
@@ -185,7 +184,7 @@ async def save_config(
         logger.info(f"✅ Started {started_count}/2 bot containers")
 
         if started_count == 0:
-            logger.warning("⚠️ No containers were started. Make sure Docker image 'trading-bot:latest' exists")
+            logger.warning("⚠️ No containers were started. Make sure Docker images exist: bot_trading_ia-eth-ai:latest and bot_trading_ia-btc-ai:latest")
 
         return StandardResponse(
             success=True,
@@ -340,12 +339,11 @@ async def start_containers(
 
         logger.info(f"🚀 Starting bot containers for user {user_id} in {environment}")
 
-        # Start all bots
+        # Start all bots (uses pair-specific images)
         results = docker_service.start_all_bots_for_user(
             db=db,
             user_id=user_id,
-            environment=environment,
-            image_name="trading-bot:latest"
+            environment=environment
         )
 
         started_count = sum(1 for cid in results.values() if cid is not None)
@@ -353,7 +351,7 @@ async def start_containers(
         if started_count == 0:
             return StandardResponse(
                 success=False,
-                message="No se pudo iniciar ningún contenedor. Verifica que la imagen Docker 'trading-bot:latest' exista."
+                message="No se pudo iniciar ningún contenedor. Verifica que las imágenes existan: bot_trading_ia-eth-ai:latest y bot_trading_ia-btc-ai:latest"
             )
 
         return StandardResponse(
@@ -463,12 +461,12 @@ async def toggle_pair_container(
 
         if action == "start":
             logger.info(f"🚀 Starting {pair} bot for user {user_id} in {environment}")
+            # Auto-select image based on pair (ETH or BTC)
             container_id = docker_service.create_and_start_container(
                 db=db,
                 user_id=user_id,
                 pair=pair,
-                environment=environment,
-                image_name="trading-bot:latest"
+                environment=environment
             )
 
             if container_id:

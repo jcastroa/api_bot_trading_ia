@@ -331,11 +331,14 @@ class DockerService:
         self,
         db: Session,
         user_id: int,
-        environment: str,
-        image_name: str = "trading-bot:latest"
+        environment: str
     ) -> Dict[str, Optional[str]]:
         """
         Start bot containers for all pairs (ETHUSDT and BTCUSDT)
+
+        Each pair will use its specific image:
+        - ETHUSDT -> bot_trading_ia-eth-ai:latest
+        - BTCUSDT -> bot_trading_ia-btc-ai:latest
 
         Returns:
             Dict with container IDs: {"ETHUSDT": "container_id", "BTCUSDT": "container_id"}
@@ -344,7 +347,10 @@ class DockerService:
         pairs = ["ETHUSDT", "BTCUSDT"]
 
         for pair in pairs:
-            logger.info(f"🚀 Starting bot for {pair}...")
+            # Auto-select image based on pair
+            image_name = self._get_image_name(pair)
+            logger.info(f"🚀 Starting bot for {pair} with image {image_name}...")
+
             container_id = self.create_and_start_container(
                 db, user_id, pair, environment, image_name
             )
