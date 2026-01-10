@@ -1,7 +1,7 @@
 """
 Configuration endpoints for API keys, bot settings, and container status
 """
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 from typing import Literal
