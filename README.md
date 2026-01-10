@@ -22,6 +22,8 @@ API backend para el sistema de trading bot con autenticación Firebase, gestión
 - 🔒 **Encriptación AES-256**: Para API keys de Binance
 - 📊 **Endpoints Completos**: Auth, Bot State, Trades, Performance, Configuration
 - 🐳 **Dockerizado**: Listo para producción
+- 🤖 **Orquestación Automática**: Levanta contenedores Docker de bots automáticamente
+- 🎯 **Imágenes Específicas por Par**: ETH y BTC con imágenes separadas
 - 📝 **Documentación Automática**: Swagger UI y ReDoc
 - ✅ **Validación de Datos**: Pydantic schemas
 - 🌐 **CORS Configurado**: Para frontend React
@@ -231,9 +233,18 @@ open http://localhost:5000/docs
 | Método | Endpoint | Descripción |
 |--------|----------|-------------|
 | GET | `/api/config/{environment}` | Estado de API keys |
-| POST | `/api/config/save` | Guardar API keys (encriptado) |
-| GET | `/api/config/container/status/{environment}` | Estado del contenedor bot |
+| POST | `/api/config/save` | Guardar API keys + Auto-start bots 🚀 |
+| GET | `/api/config/container/status/{environment}` | Estado de contenedores |
 | GET | `/api/config/bot/{pair}/{environment}` | Configuración del bot |
+
+### Control de Contenedores Docker
+
+| Método | Endpoint | Descripción |
+|--------|----------|-------------|
+| POST | `/api/config/container/start/{environment}` | Iniciar todos los bots (ETH + BTC) |
+| POST | `/api/config/container/stop/{environment}` | Detener todos los bots |
+| POST | `/api/config/container/restart/{environment}` | Reiniciar todos los bots |
+| POST | `/api/config/container/toggle/{pair}/{environment}` | Iniciar/detener bot específico (query: `?action=start\|stop`) |
 
 ### Ejemplos de Uso
 
@@ -298,6 +309,83 @@ docker-compose down && docker-compose up --build -d
 ### Variables de Entorno en Docker
 
 El archivo `docker-compose.yml` lee las variables del archivo `.env` automáticamente.
+
+### 🚀 Docker Container Orchestration
+
+Esta API puede **gestionar automáticamente contenedores Docker** para los bots de trading.
+
+#### Cómo Funciona
+
+Cuando un usuario guarda sus API keys (`POST /api/config/save`), la API automáticamente:
+
+1. ✅ Encripta y guarda las API keys
+2. ✅ Crea configuraciones para ETH y BTC
+3. ✅ **Levanta 2 contenedores Docker:**
+   - `bot-user{id}-ethusdt-{environment}` con imagen `bot_trading_ia-eth-ai:latest`
+   - `bot-user{id}-btcusdt-{environment}` con imagen `bot_trading_ia-btc-ai:latest`
+4. ✅ Pasa 30+ variables de entorno a cada contenedor
+5. ✅ Registra en la base de datos
+
+#### Requisitos
+
+**IMPORTANTE:** Para que la orquestación funcione, necesitas:
+
+1. **Construir las imágenes del bot:**
+   ```bash
+   # Ver bot_template/ para templates
+   docker build -t bot_trading_ia-eth-ai:latest /path/to/eth/bot
+   docker build -t bot_trading_ia-btc-ai:latest /path/to/btc/bot
+   ```
+
+2. **Docker socket montado** (ya configurado en docker-compose.yml):
+   ```yaml
+   volumes:
+     - /var/run/docker.sock:/var/run/docker.sock
+   ```
+
+#### Endpoints de Control
+
+```bash
+# Iniciar todos los bots
+POST /api/config/container/start/{environment}
+
+# Detener todos los bots
+POST /api/config/container/stop/{environment}
+
+# Reiniciar todos los bots
+POST /api/config/container/restart/{environment}
+
+# Control granular por par
+POST /api/config/container/toggle/{pair}/{environment}?action=start|stop
+```
+
+#### Verificar Contenedores
+
+```bash
+# Ver contenedores de bots
+docker ps | grep bot-user
+
+# Ver logs de un bot específico
+docker logs -f bot-user1-ethusdt-testnet
+
+# Ver variables de entorno
+docker inspect bot-user1-ethusdt-testnet | grep -A 50 Env
+```
+
+#### Seguridad del Socket Docker
+
+⚠️ **IMPORTANTE:** Montar `/var/run/docker.sock` da acceso completo al Docker daemon.
+
+**Consideraciones:**
+- ✅ Usar solo en entornos confiables
+- ✅ No exponer la API públicamente sin autenticación robusta
+- ✅ Considerar usar Docker-in-Docker para mayor aislamiento en producción
+- ✅ Revisar logs regularmente para detectar actividad sospechosa
+
+Para **producción**, considera alternativas más seguras:
+- Usar Kubernetes con RBAC
+- Usar Docker Swarm con secrets
+- Usar un servicio de orquestación dedicado
 
 ## 🛠️ Desarrollo
 
