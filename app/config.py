@@ -42,6 +42,9 @@ class Settings(BaseSettings):
     rate_limit_requests: int = 100
     rate_limit_period: int = 900
 
+    # Docker Configuration
+    docker_network: str = "bot_trading_web_trading-network"
+
     @property
     def database_url(self) -> str:
         """Generate database connection URL"""

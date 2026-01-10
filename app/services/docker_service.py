@@ -200,7 +200,7 @@ class DockerService:
                 environment=env_vars,
                 detach=True,
                 restart_policy={"Name": "unless-stopped"},
-                network_mode="bridge",
+                network_mode=settings.docker_network,  # Use configured network
                 labels={
                     "user_id": str(user_id),
                     "pair": pair,
@@ -399,35 +399,22 @@ class DockerService:
         """
         Save container info to database
 
-        NOTE: The docker_containers table has UNIQUE(user_id, environment) constraint,
-        which means we can only store one record per user per environment.
-        Since we have 2 containers (ETH and BTC), we save them with "MULTI" indicator.
+        After migration 001, the table has UNIQUE(user_id, environment, pair),
+        allowing separate records for ETH and BTC containers.
         """
         try:
-            # For multiple containers, we'll store a general status
-            # The actual container tracking is done via Docker API
-            multi_container_id = f"MULTI:{pair}:{container_id[:12]}"
-
-            # Check if exists
+            # Check if exists for this specific pair
             existing = db.execute(
                 text("""
-                    SELECT id, container_id FROM docker_containers
-                    WHERE user_id = :user_id AND environment = :environment
+                    SELECT id FROM docker_containers
+                    WHERE user_id = :user_id AND environment = :environment AND pair = :pair
                 """),
-                {"user_id": user_id, "environment": environment}
+                {"user_id": user_id, "environment": environment, "pair": pair}
             ).fetchone()
 
             if existing:
-                # If exists and already has MULTI, append
-                current_id = existing[1] or ""
-                if "MULTI" in current_id:
-                    # Already tracking multiple containers
-                    logger.info(f"⚠️ Updating multi-container tracking for {pair}")
-                else:
-                    # First time adding second container
-                    logger.info(f"⚠️ Converting to multi-container tracking")
-
-                # Update with latest container info
+                # Update existing record
+                logger.info(f"🔄 Updating existing record for {pair}")
                 db.execute(
                     text("""
                         UPDATE docker_containers
@@ -435,27 +422,30 @@ class DockerService:
                             status = :status,
                             image_version = :image_version,
                             last_restart = NOW()
-                        WHERE user_id = :user_id AND environment = :environment
+                        WHERE user_id = :user_id AND environment = :environment AND pair = :pair
                     """),
                     {
                         "user_id": user_id,
                         "environment": environment,
-                        "container_id": multi_container_id,
+                        "pair": pair,
+                        "container_id": container_id,
                         "status": status,
                         "image_version": image_version
                     }
                 )
             else:
                 # Insert new record
+                logger.info(f"➕ Creating new record for {pair}")
                 db.execute(
                     text("""
                         INSERT INTO docker_containers
-                        (user_id, container_id, environment, status, image_version, last_restart, created_at)
-                        VALUES (:user_id, :container_id, :environment, :status, :image_version, NOW(), NOW())
+                        (user_id, pair, container_id, environment, status, image_version, last_restart, created_at)
+                        VALUES (:user_id, :pair, :container_id, :environment, :status, :image_version, NOW(), NOW())
                     """),
                     {
                         "user_id": user_id,
-                        "container_id": multi_container_id,
+                        "pair": pair,
+                        "container_id": container_id,
                         "environment": environment,
                         "status": status,
                         "image_version": image_version
@@ -463,8 +453,7 @@ class DockerService:
                 )
 
             db.commit()
-            logger.info(f"✅ Container info saved to database (pair: {pair})")
-            logger.info(f"   Note: docker_containers table tracks general status only due to UNIQUE constraint")
+            logger.info(f"✅ Container info saved to database: user_id={user_id}, pair={pair}, environment={environment}")
 
         except Exception as e:
             logger.error(f"❌ Error saving container to DB: {e}")
