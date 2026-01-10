@@ -76,6 +76,7 @@ async def get_bot_state(
                 tp1_executed=False,
                 tp2_executed=False,
                 tp3_executed=False,
+                threshold_used=None,
                 total_trades=0,
                 winning_trades=0,
                 blocked_trades=0
@@ -110,6 +111,7 @@ async def get_bot_state(
             regime=result[14],
             probability=result[15],
             volatility=result[16],
+            threshold_used=result[17],  # Adaptive threshold
             available_capital=result[18],
             total_pnl=None,  # Not in real schema
             total_pnl_percent=None,  # Not in real schema

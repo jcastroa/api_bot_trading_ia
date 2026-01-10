@@ -102,6 +102,7 @@ class BotStateData(BaseModel):
     regime: Optional[str] = None
     probability: Optional[float] = None
     volatility: Optional[float] = None
+    threshold_used: Optional[float] = None  # Adaptive threshold for entry signals
     available_capital: Optional[float] = None
     total_pnl: Optional[float] = None
     total_pnl_percent: Optional[float] = None
