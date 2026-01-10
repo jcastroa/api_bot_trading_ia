@@ -65,34 +65,80 @@ class DockerService:
     ) -> Dict[str, str]:
         """Build environment variables for the bot container"""
 
+        # Determine ACTIVE_PAIR (ETH or BTC)
+        active_pair = "ETH" if pair == "ETHUSDT" else "BTC"
+
         # Prefix based on environment
         env_prefix = "BINANCE_TESTNET" if environment == "testnet" else "BINANCE_PRODUCTION"
 
         env_vars = {
-            # Bot configuration
-            "USER_ID": str(user_id),
-            "PAIR": pair,
-            "ENVIRONMENT": environment,
+            # ============================================================================
+            # 🗄️ DATABASE CONFIGURATION - MariaDB
+            # ============================================================================
+            "DB_HOST": settings.db_host,
+            "DB_PORT": str(settings.db_port),
+            "DB_USER": settings.db_user,
+            "DB_PASSWORD": settings.db_password,
+            "DB_NAME": settings.db_name,
 
-            # Binance API keys
+            # ============================================================================
+            # 👤 USER CONFIGURATION
+            # ============================================================================
+            "USER_ID": str(user_id),
+
+            # ============================================================================
+            # 🔑 BINANCE API KEYS
+            # ============================================================================
             f"{env_prefix}_API_KEY": api_key,
             f"{env_prefix}_SECRET_KEY": secret_key,
 
-            # Database configuration
-            "DB_HOST": settings.db_host,
-            "DB_PORT": str(settings.db_port),
-            "DB_NAME": settings.db_name,
-            "DB_USER": settings.db_user,
-            "DB_PASSWORD": settings.db_password,
+            # ============================================================================
+            # ⚙️ BOT CONFIGURATION
+            # ============================================================================
+            "TESTNET": "true" if environment == "testnet" else "false",
+            "ENVIRONMENT": environment,
+            "ACTIVE_PAIR": active_pair,  # ETH or BTC
 
-            # Encryption key (for bot to encrypt/decrypt if needed)
+            # ============================================================================
+            # 📧 EMAIL NOTIFICATIONS (from settings or defaults)
+            # ============================================================================
+            "EMAIL_ENABLED": "true",
+            "EMAIL_HOST": "smtp.gmail.com",
+            "EMAIL_PORT": "587",
+            # Note: Email credentials should be in API settings if needed
+            # "EMAIL_USER": "",
+            # "EMAIL_PASSWORD": "",
+            # "EMAIL_TO": "",
+
+            # ============================================================================
+            # 🔔 TELEGRAM NOTIFICATIONS (Optional)
+            # ============================================================================
+            "TELEGRAM_ENABLED": "false",
+            # "TELEGRAM_BOT_TOKEN": "",
+            # "TELEGRAM_CHAT_ID": "",
+
+            # ============================================================================
+            # ⚡ ADVANCED SETTINGS
+            # ============================================================================
+            "CHECK_INTERVAL": "3600",  # 1 hour
+            "LOOKBACK_DAYS": "1825",   # 5 years
+            "DEBUG": "false",
+
+            # Encryption key (if bot needs it)
             "ENCRYPTION_KEY": settings.encryption_key,
-
-            # Email configuration (from settings or env)
-            "EMAIL_ENABLED": "true",  # You can make this configurable
         }
 
         return env_vars
+
+    def _get_image_name(self, pair: str) -> str:
+        """Get Docker image name based on pair"""
+        if pair == "ETHUSDT":
+            return "bot_trading_ia-eth-ai:latest"
+        elif pair == "BTCUSDT":
+            return "bot_trading_ia-btc-ai:latest"
+        else:
+            logger.warning(f"⚠️ Unknown pair {pair}, using default image")
+            return "trading-bot:latest"
 
     def create_and_start_container(
         self,
@@ -100,7 +146,7 @@ class DockerService:
         user_id: int,
         pair: str,
         environment: str,
-        image_name: str = "trading-bot:latest"
+        image_name: Optional[str] = None
     ) -> Optional[str]:
         """
         Create and start a trading bot container
@@ -110,7 +156,7 @@ class DockerService:
             user_id: User ID
             pair: Trading pair (ETHUSDT or BTCUSDT)
             environment: testnet or production
-            image_name: Docker image name
+            image_name: Docker image name (if None, auto-select based on pair)
 
         Returns:
             Container ID if successful, None otherwise
@@ -120,6 +166,10 @@ class DockerService:
             return None
 
         container_name = self._get_container_name(user_id, pair, environment)
+
+        # Auto-select image based on pair if not specified
+        if image_name is None:
+            image_name = self._get_image_name(pair)
 
         try:
             # Check if container already exists
@@ -162,13 +212,16 @@ class DockerService:
             container_id = container.id
             logger.info(f"✅ Container created and started: {container_id[:12]}")
 
-            # Save to database
-            self._save_container_to_db(db, user_id, container_id, environment, "running", image_name)
+            # Save to database (NOTE: table has UNIQUE constraint on user_id+environment)
+            # This means we can only save one record per user per environment
+            # We'll save the last created container info
+            self._save_container_to_db(db, user_id, container_id, pair, environment, "running", image_name)
 
             return container_id
 
         except NotFound:
             logger.error(f"❌ Docker image '{image_name}' not found. Please build it first.")
+            logger.error(f"   Expected images: bot_trading_ia-eth-ai:latest or bot_trading_ia-btc-ai:latest")
             return None
         except APIError as e:
             logger.error(f"❌ Docker API error: {e}")
@@ -332,23 +385,43 @@ class DockerService:
         db: Session,
         user_id: int,
         container_id: str,
+        pair: str,
         environment: str,
         status: str,
         image_version: str
     ):
-        """Save container info to database"""
+        """
+        Save container info to database
+
+        NOTE: The docker_containers table has UNIQUE(user_id, environment) constraint,
+        which means we can only store one record per user per environment.
+        Since we have 2 containers (ETH and BTC), we save them with "MULTI" indicator.
+        """
         try:
+            # For multiple containers, we'll store a general status
+            # The actual container tracking is done via Docker API
+            multi_container_id = f"MULTI:{pair}:{container_id[:12]}"
+
             # Check if exists
             existing = db.execute(
                 text("""
-                    SELECT id FROM docker_containers
+                    SELECT id, container_id FROM docker_containers
                     WHERE user_id = :user_id AND environment = :environment
                 """),
                 {"user_id": user_id, "environment": environment}
             ).fetchone()
 
             if existing:
-                # Update
+                # If exists and already has MULTI, append
+                current_id = existing[1] or ""
+                if "MULTI" in current_id:
+                    # Already tracking multiple containers
+                    logger.info(f"⚠️ Updating multi-container tracking for {pair}")
+                else:
+                    # First time adding second container
+                    logger.info(f"⚠️ Converting to multi-container tracking")
+
+                # Update with latest container info
                 db.execute(
                     text("""
                         UPDATE docker_containers
@@ -361,13 +434,13 @@ class DockerService:
                     {
                         "user_id": user_id,
                         "environment": environment,
-                        "container_id": container_id,
+                        "container_id": multi_container_id,
                         "status": status,
                         "image_version": image_version
                     }
                 )
             else:
-                # Insert
+                # Insert new record
                 db.execute(
                     text("""
                         INSERT INTO docker_containers
@@ -376,7 +449,7 @@ class DockerService:
                     """),
                     {
                         "user_id": user_id,
-                        "container_id": container_id,
+                        "container_id": multi_container_id,
                         "environment": environment,
                         "status": status,
                         "image_version": image_version
@@ -384,7 +457,8 @@ class DockerService:
                 )
 
             db.commit()
-            logger.info(f"✅ Container info saved to database")
+            logger.info(f"✅ Container info saved to database (pair: {pair})")
+            logger.info(f"   Note: docker_containers table tracks general status only due to UNIQUE constraint")
 
         except Exception as e:
             logger.error(f"❌ Error saving container to DB: {e}")
