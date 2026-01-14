@@ -45,18 +45,21 @@ async def get_bot_state(
     try:
         user_id = current_user["id"]
 
-        # Query latest bot state
+        # Query latest bot state with all fields
         result = db.execute(
             text("""
                 SELECT
                     id, user_id, pair, environment, in_position,
                     entry_price, entry_time, current_price, position_amount, position_original,
-                    tp1_executed, tp2_executed,
+                    tp1_executed, tp2_executed, tp3_executed,
                     current_pnl_usd, current_pnl_percent,
                     regime, probability, volatility, threshold_used,
                     available_capital,
                     total_trades, winning_trades, trades_blocked,
-                    last_check, last_signal_action
+                    last_check, last_signal_action,
+                    stop_loss_price, tp1_price, tp2_price, tp3_price,
+                    stop_loss_percent, tp1_percent, tp2_percent, tp3_percent,
+                    total_pnl, total_pnl_percent
                 FROM bot_states
                 WHERE user_id = :user_id AND pair = :pair
                 ORDER BY last_check DESC
@@ -83,7 +86,7 @@ async def get_bot_state(
             )
             return BotStateResponse(success=True, data=default_state)
 
-        # Convert result to dict
+        # Convert result to dict with all fields
         bot_state = BotStateData(
             id=result[0],
             user_id=result[1],
@@ -97,28 +100,28 @@ async def get_bot_state(
             position_original=result[9],
             tp1_executed=bool(result[10]),
             tp2_executed=bool(result[11]),
-            tp3_executed=False,  # Not in real schema
-            pnl_usd=result[12],  # current_pnl_usd
-            pnl_percent=result[13],  # current_pnl_percent
-            stop_loss_price=None,  # Not in real schema
-            stop_loss_percent=None,  # Not in real schema
-            tp1_price=None,  # Not in real schema
-            tp1_percent=None,  # Not in real schema
-            tp2_price=None,  # Not in real schema
-            tp2_percent=None,  # Not in real schema
-            tp3_price=None,  # Not in real schema
-            tp3_percent=None,  # Not in real schema
-            regime=result[14],
-            probability=result[15],
-            volatility=result[16],
-            threshold_used=result[17],  # Adaptive threshold
-            available_capital=result[18],
-            total_pnl=None,  # Not in real schema
-            total_pnl_percent=None,  # Not in real schema
-            total_trades=result[19],
-            winning_trades=result[20],
-            blocked_trades=result[21],  # trades_blocked
-            last_check=result[22]
+            tp3_executed=bool(result[12]),
+            pnl_usd=result[13],  # current_pnl_usd
+            pnl_percent=result[14],  # current_pnl_percent
+            regime=result[15],
+            probability=result[16],
+            volatility=result[17],
+            threshold_used=result[18],  # Adaptive threshold
+            available_capital=result[19],
+            total_trades=result[20],
+            winning_trades=result[21],
+            blocked_trades=result[22],  # trades_blocked
+            last_check=result[23],
+            stop_loss_price=result[24],
+            tp1_price=result[25],
+            tp2_price=result[26],
+            tp3_price=result[27],
+            stop_loss_percent=result[28],
+            tp1_percent=result[29],
+            tp2_percent=result[30],
+            tp3_percent=result[31],
+            total_pnl=result[32],
+            total_pnl_percent=result[33]
         )
 
         return BotStateResponse(success=True, data=bot_state)
