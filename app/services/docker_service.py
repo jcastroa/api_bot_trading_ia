@@ -100,15 +100,14 @@ class DockerService:
             "ACTIVE_PAIR": active_pair,  # ETH or BTC
 
             # ============================================================================
-            # 📧 EMAIL NOTIFICATIONS (from settings or defaults)
+            # 📧 EMAIL NOTIFICATIONS (from settings)
             # ============================================================================
             "EMAIL_ENABLED": "true",
             "EMAIL_HOST": "smtp.gmail.com",
             "EMAIL_PORT": "587",
-            # Note: Email credentials should be in API settings if needed
-            # "EMAIL_USER": "",
-            # "EMAIL_PASSWORD": "",
-            # "EMAIL_TO": "",
+            "EMAIL_USER": settings.email_user,
+            "EMAIL_PASSWORD": settings.email_password,
+            # Note: EMAIL_TO is retrieved by the bot from the database (users.email)
 
             # ============================================================================
             # 🔔 TELEGRAM NOTIFICATIONS (Optional)
