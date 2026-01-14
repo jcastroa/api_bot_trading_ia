@@ -110,6 +110,7 @@ class BotStateData(BaseModel):
     winning_trades: int = 0
     blocked_trades: int = 0
     last_check: Optional[datetime] = None
+    last_signal_action: Optional[str] = None
 
     class Config:
         from_attributes = True

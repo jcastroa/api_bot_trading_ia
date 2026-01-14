@@ -112,16 +112,17 @@ async def get_bot_state(
             winning_trades=result[21],
             blocked_trades=result[22],  # trades_blocked
             last_check=result[23],
-            stop_loss_price=result[24],
-            tp1_price=result[25],
-            tp2_price=result[26],
-            tp3_price=result[27],
-            stop_loss_percent=result[28],
-            tp1_percent=result[29],
-            tp2_percent=result[30],
-            tp3_percent=result[31],
-            total_pnl=result[32],
-            total_pnl_percent=result[33]
+            last_signal_action=result[24],
+            stop_loss_price=result[25],
+            tp1_price=result[26],
+            tp2_price=result[27],
+            tp3_price=result[28],
+            stop_loss_percent=result[29],
+            tp1_percent=result[30],
+            tp2_percent=result[31],
+            tp3_percent=result[32],
+            total_pnl=result[33],
+            total_pnl_percent=result[34]
         )
 
         return BotStateResponse(success=True, data=bot_state)
