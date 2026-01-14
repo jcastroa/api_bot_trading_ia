@@ -45,6 +45,10 @@ class Settings(BaseSettings):
     # Docker Configuration
     docker_network: str = "bot_trading_web_trading-network"
 
+    # Email Configuration (for bot notifications)
+    email_user: str = ""
+    email_password: str = ""
+
     @property
     def database_url(self) -> str:
         """Generate database connection URL"""
