@@ -109,7 +109,19 @@ ENCRYPTION_KEY=your-32-character-encryption-key
 FIREBASE_CREDENTIALS_PATH=/app/firebase-credentials.json
 # O usar JSON directo:
 # FIREBASE_CREDENTIALS_JSON={"type":"service_account",...}
+
+# Docker Configuration
+DOCKER_NETWORK=bot_trading_web_trading-network
+
+# Email Configuration (for bot notifications)
+EMAIL_USER=your_email@gmail.com
+EMAIL_PASSWORD="your google app password with spaces"
 ```
+
+**⚠️ Nota importante sobre EMAIL_PASSWORD:**
+- Usa comillas dobles si tu contraseña contiene espacios (típico de las contraseñas de aplicación de Google)
+- Las claves de aplicación de Google tienen el formato: `xxxx xxxx xxxx xxxx` (con espacios)
+- Ejemplo: `EMAIL_PASSWORD="abcd efgh ijkl mnop"`
 
 ### Generar Claves Secretas
 
@@ -122,6 +134,24 @@ print(secrets.token_urlsafe(32))
 import secrets
 print(secrets.token_urlsafe(32)[:32])
 ```
+
+### Configurar Email para Notificaciones
+
+Para que los bots puedan enviar notificaciones por email, necesitas configurar una cuenta de Gmail:
+
+1. **Habilitar verificación en 2 pasos** en tu cuenta de Gmail
+2. **Generar una contraseña de aplicación**:
+   - Ve a [myaccount.google.com](https://myaccount.google.com)
+   - Seguridad → Verificación en 2 pasos → Contraseñas de aplicaciones
+   - Selecciona "Correo" y "Otro (nombre personalizado)"
+   - Copia la contraseña generada (formato: `xxxx xxxx xxxx xxxx`)
+3. **Configurar en .env**:
+   ```env
+   EMAIL_USER=tu_cuenta@gmail.com
+   EMAIL_PASSWORD="xxxx xxxx xxxx xxxx"
+   ```
+
+**Nota:** El bot recupera automáticamente el email destino desde la base de datos (campo `users.email`), por lo que no necesitas configurar `EMAIL_TO`.
 
 ## 🔥 Firebase Setup
 
